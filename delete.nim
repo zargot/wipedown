@@ -84,7 +84,7 @@ proc getMessages(req: HttpClient, channel, lastId: string): JsonNode =
 proc getMessageIds(req: HttpClient, channel, userId: string, lastId: var string):
         tuple[done: bool, ids: seq[Id]] =
     let json = getMessages(req, channel, lastId)
-    echo fmt"parsing {json.len} messages"
+    #echo fmt"parsing {json.len} messages"
     var
         ids {.global.}: seq[Id]
         idTimes {.global.}: seq[tuple[i: int, time: int64]]
@@ -101,10 +101,13 @@ proc getMessageIds(req: HttpClient, channel, userId: string, lastId: var string)
             #echo "msg: ", msg["content"].getStr
             result.ids.add id
     idTimes.sort((a,b) => cmp(a.time, b.time))
-    let first = idTimes[0].i
+    let
+        first = idTimes[0].i
+        firstTime = json[first]["timestamp"].getStr.timestampToDateTime
     lastId = ids[first]
     if json.len < batchSize:
         result.done = true
+    echo firstTime
 
 proc getChannelName(req; channel: string): string =
     let res = req.get channel
