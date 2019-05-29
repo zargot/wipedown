@@ -65,7 +65,7 @@ proc timestampToUnix(s: string): int64 =
     date.toTime.toUnix
 
 proc getMessages(req: HttpClient, channel, lastId: string): JsonNode =
-    echo "requesting more messages"
+    #echo "requesting more messages"
     let messages = channel/"messages"
     var params: seq[string]
     if lastId != "":
@@ -74,7 +74,6 @@ proc getMessages(req: HttpClient, channel, lastId: string): JsonNode =
     let
         paramStr = "?" & params.join("&")
         query = messages & paramStr
-    echo query
     let res = req.get query
     checkStatus res
     res.body.parseJson
@@ -96,7 +95,7 @@ proc getMessageIds(req: HttpClient, channel, userId: string, lastId: var string)
         ids.add id
         idTimes.add (ids.high, time)
         if msg["author"]["id"].getStr == userId:
-            echo "msg: ", msg["content"].getStr
+            #echo "msg: ", msg["content"].getStr
             result.ids.add id
     idTimes.sort((a,b) => cmp(a.time, b.time))
     let first = idTimes[0].i
@@ -153,11 +152,11 @@ proc main =
         ids.add batch.ids
         if batch.done:
             break
-    if true: quit 0
 
     echo fmt"{ids.len} messages found"
     if not prompt("are you sure you want to delete them?"):
         return
+    if true: quit 0
     deleteMessages req, channel, ids
 
 main()
