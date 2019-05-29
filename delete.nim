@@ -52,7 +52,7 @@ proc getUser(req): auto =
         name = user["username"].getStr
     (id, name)
 
-proc timestampToUnix(s: string): int64 =
+proc timestampToDateTime(s: string): DateTime =
     const
         fmt0Str = "YYYY-MM-dd'T'HH:mm:sszzz"
         fmt1Str = "YYYY-MM-dd'T'HH:mm:ss'.'ffffffzzz"
@@ -61,7 +61,10 @@ proc timestampToUnix(s: string): int64 =
         fmtLengths = [25, 25+7]
     let n = s.len
     require n in fmtLengths, "invalid timestamp: " & s
-    let date = s.parse(if n == fmtLengths[0]: fmt0 else: fmt1, utc())
+    s.parse(if n == fmtLengths[0]: fmt0 else: fmt1, utc())
+
+proc timestampToUnix(s: string): int64 =
+    let date = s.timestampToDateTime
     date.toTime.toUnix
 
 proc getMessages(req: HttpClient, channel, lastId: string): JsonNode =
