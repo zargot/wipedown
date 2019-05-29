@@ -62,8 +62,7 @@ proc timestampToUnix(s: string): int64 =
     let date = s.parse(if n == fmtLengths[0]: fmt0 else: fmt1, utc())
     date.toTime.toUnix
 
-proc getMessageIds(req: HttpClient, channel, userId: string, lastId: var string):
-        tuple[done: bool, ids: seq[Id]] =
+proc getMessages(req: HttpClient, channel, lastId: string): JsonNode =
     echo "requesting more messages"
     let messages = channel/"messages"
     var params: seq[string]
@@ -77,8 +76,11 @@ proc getMessageIds(req: HttpClient, channel, userId: string, lastId: var string)
     let res = req.get query
     if res.status != Http200:
         quit res.status
-    let json = res.body.parseJson
+    res.body.parseJson
 
+proc getMessageIds(req: HttpClient, channel, userId: string, lastId: var string):
+        tuple[done: bool, ids: seq[Id]] =
+    let json = getMessages(req, channel, lastId)
     echo fmt"parsing {json.len} messages"
     var
         ids {.global.}: seq[Id]
