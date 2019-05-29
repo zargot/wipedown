@@ -118,12 +118,22 @@ proc prompt(q: string): bool =
     of "y", "yes":
         return true
 
+proc deleteMessages(req; channel: string, ids: openArray[Id]) =
+    echo fmt"deleting {ids.len} messages"
+    let messages = channel/"messages"
+    var n = 0
+    for id in ids:
+        let res = req.delete messages/id
+        checkStatus res
+        n.inc
+        break
+    echo fmt"result: {n} messages deleted"
+
 proc main =
     let
         chanId = paramStr 1
         auth = paramStr 2
         channel = channels/chanId
-        messages = channel/"messages"
         req = newHttpClient()
     req.headers.add "authorization", auth
 
@@ -145,13 +155,6 @@ proc main =
             break
     if true: quit 0
 
-    echo fmt"deleting {ids.len} messages"
-    var n = 0
-    for id in ids:
-        let res = req.delete messages/id
-        checkStatus res
-        n.inc
-        break
-    echo fmt"result: {n} messages deleted"
+    deleteMessages req, channel, ids
 
 main()
