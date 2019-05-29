@@ -88,8 +88,9 @@ proc getMessages(req: HttpClient, channel, lastId: string): JsonNode =
     checkStatus res
     res.body.parseJson
 
-proc getMessageIds(req: HttpClient, channel, userId: string, lastId: var string):
-        tuple[done: bool, ids: seq[Id]] =
+proc getMessageIds(req: HttpClient, channel, userId: string, lastId: var string,
+                   res: var seq[Id]): bool =
+    ## returns false when done
     let json = getMessages(req, channel, lastId)
     #echo fmt"parsing {json.len} messages"
     var
@@ -106,15 +107,14 @@ proc getMessageIds(req: HttpClient, channel, userId: string, lastId: var string)
         idTimes.add (ids.high, time)
         if msg["author"]["id"].getStr == userId:
             #echo "msg: ", msg["content"].getStr
-            result.ids.add id
+            res.add id
     idTimes.sort((a,b) => cmp(a.time, b.time))
     let
         first = idTimes[0].i
         firstTime = json[first]["timestamp"].getStr.timestampToDateTime
     lastId = ids[first]
-    if json.len < batchSize:
-        result.done = true
     echo firstTime
+    json.len >= batchSize
 
 proc getChannelName(req; channel: string): string =
     let res = req.get channel
@@ -159,12 +159,9 @@ proc main =
     var
         ids: seq[Id]
         lastId: string
-    #while true:
-    for i in 0..3:
-        let batch = getMessageIds(req, channel, userId, lastId)
-        ids.add batch.ids
-        if batch.done:
-            break
+    while getMessageIds(req, channel, userId, lastId, ids):
+        break
+        #discard
 
     echo fmt"{ids.len} messages found"
     if not prompt("are you sure you want to delete them?"):
