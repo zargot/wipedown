@@ -32,7 +32,7 @@ proc require(cond: bool, err: string) =
         raise newException(Exception, err)
 
 template checkStatus(res: Response) =
-    require res.status == Http200:
+    require res.status == Http200, res.status
 
 proc toId(str): Id =
     str.parseUInt.uint64
