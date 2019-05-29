@@ -11,7 +11,7 @@ import
 import os except `/`
 
 type
-    Id = array[24, char]
+    Id = uint64
 
 using
     id: Id
@@ -32,12 +32,10 @@ template checkStatus(res: Response) =
         raise newException(Exception, res.status)
 
 proc toId(str): Id =
-    let n = min(result.sizeof, str.len)
-    copyMem result[0].addr, str.cstring, n
-    result[n] = '\0'
+    str.parseUInt.uint64
 
 converter toStr(id): string =
-    $id[0].unsafeAddr.cstring
+    $id
 
 proc getUser(req): auto =
     const
