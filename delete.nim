@@ -4,23 +4,28 @@
 # - rate limit: https://ptb.discordapp.com/developers/docs/topics/rate-limits
 
 import
-    algorithm, httpclient, json, os,
+    algorithm, httpclient, json,
     sequtils, strformat, strutils, sugar,
     times
 
+import os except `/`
+
 type
     Id = array[24, char]
-
-const
-    server = "https://discordapp.com/api/v6"
-    channels = server/"channels"
-    batchSize = 100
 
 using
     id: Id
     str: string
     req: HttpClient
     res: Response
+
+func `/`(a, b: string): string =
+    a & "/" & b
+
+const
+    server = "https://discordapp.com/api/v6"
+    channels = server/"channels"
+    batchSize = 100
 
 template checkStatus(res: Response) =
     if res.status != Http200:
@@ -35,54 +40,79 @@ converter toStr(id): string =
     $id[0].unsafeAddr.cstring
 
 proc getUser(req): auto =
-    const me = "users/@me"
+    const
+        users = server/"users"
+        me = users/"@me"
     let res = req.get me
     checkStatus res
     let
         user = res.body.parseJson
         id = user["id"].getStr.toId
-        name = user["name"].getStr
+        name = user["username"].getStr
     (id, name)
 
-proc getMessageIds(req: HttpClient, channel, userId: string, lastId: var string): seq[Id] =
+proc timestampToUnix(s: string): int64 =
+    const
+        fmt0Str = "YYYY-MM-dd'T'HH:mm:sszzz"
+        fmt1Str = "YYYY-MM-dd'T'HH:mm:ss'.'ffffffzzz"
+        fmt0 = initTimeFormat fmt0Str
+        fmt1 = initTimeFormat fmt1Str
+        fmtLengths = [25, 25+7]
+    let n = s.len
+    if n notin fmtLengths:
+        quit "invalid timestamp: " & s
+    let date = s.parse(if n == fmtLengths[0]: fmt0 else: fmt1, utc())
+    date.toTime.toUnix
+
+proc getMessageIds(req: HttpClient, channel, userId: string, lastId: var string):
+        tuple[done: bool, ids: seq[Id]] =
     echo "requesting more messages"
     let messages = channel/"messages"
-    var params: string
+    var params: seq[string]
     if lastId != "":
         params.add "before=" & lastId
     params.add "limit=" & $batchSize
     let
-        query = messages / "?" & params.join("&")
-        res = req.get query
+        paramStr = "?" & params.join("&")
+        query = messages & paramStr
+    echo query
+    let res = req.get query
     if res.status != Http200:
-        raise newException(Exception, res.status)
+        quit res.status
     let json = res.body.parseJson
 
-    echo "parsing {json.len} messages"
-    var idTimes {.global.}: seq[tuple[i, time: int]]
+    echo fmt"parsing {json.len} messages"
+    var
+        ids {.global.}: seq[Id]
+        idTimes {.global.}: seq[tuple[i: int, time: int64]]
+    ids.setLen 0
     idTimes.setLen 0
     for msg in json:
-        if msg["author"]["id"].getStr != userId:
-            continue
         let
             timeStr = msg["timestamp"].getStr
-            fmt = initTimeFormat "YYYY-MM-DD'T'HH:mm:ss.ffffffzzz"
-            date = timeStr.parse(fmt, utc())
-            time = date.toTime.toUnix
+            time = timeStr.timestampToUnix
             id = msg["id"].getStr.toId
-        result.add id
-        idTimes.add (idTimes.len, time.int)
+        ids.add id
+        idTimes.add (ids.high, time)
+        if msg["author"]["id"].getStr == userId:
+            echo "msg: ", msg["content"].getStr
+            result.ids.add id
     idTimes.sort((a,b) => cmp(a.time, b.time))
     let first = idTimes[0].i
-    lastId = result[first]
+    lastId = ids[first]
+    if json.len < batchSize:
+        result.done = true
 
 proc getChannelName(req; channel: string): string =
     let res = req.get channel
     checkStatus res
-    res.body.parseJson()["name"].getStr
+    let json = res.body.parseJson()
+    if json["type"].getInt != 1:
+        quit "channel is not a DM"
+    json["recipients"][0]["username"].getStr
 
 proc prompt(q: string): bool =
-    echo q & " [y/N]"
+    stdout.write q & " [y/N]"
     let yn = stdin.readLine
     case yn.normalize
     of "y", "yes":
@@ -100,18 +130,20 @@ proc main =
     let
         (userId, userName) = getUser(req)
         chanName = getChannelName(req, channel)
-    echo fmt"deleting messages from {userName} in {chanName}"
+    echo fmt"deleting messages from {userName} in DM with {chanName}"
     if not prompt("continue?"):
         return
 
     var
         ids: seq[Id]
         lastId: string
-    while true:
+    #while true:
+    for i in 0..3:
         let batch = getMessageIds(req, channel, userId, lastId)
-        ids.add batch
-        if batch.len < batchSize:
+        ids.add batch.ids
+        if batch.done:
             break
+    if true: quit 0
 
     echo fmt"deleting {ids.len} messages"
     var n = 0
