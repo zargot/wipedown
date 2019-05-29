@@ -1,5 +1,12 @@
+# Discord DM Deleter
+# Copyright 2019 (c) zargot
+#
+# Limitations:
+# - must provide channel id and auth token manually
+# - currently only works on private DMs with one recipient
+#
 # API: https://github.com/discordapp/discord-api-docs/tree/master/docs/resources
-
+#
 # TODO
 # - rate limit: https://ptb.discordapp.com/developers/docs/topics/rate-limits
 
