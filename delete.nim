@@ -21,7 +21,6 @@ type
     Id = uint64
 
 using
-    id: Id
     str: string
     req: HttpClient
     res: Response
@@ -44,7 +43,7 @@ template checkStatus(res: Response) =
 proc toId(str): Id =
     str.parseUInt.uint64
 
-converter toStr(id): string =
+proc toStr(id: Id): string =
     $id
 
 proc getUser(req): auto =
@@ -55,7 +54,7 @@ proc getUser(req): auto =
     checkStatus res
     let
         user = res.body.parseJson
-        id = user["id"].getStr.toId
+        id = user["id"].getStr
         name = user["username"].getStr
     (id, name)
 
@@ -70,9 +69,9 @@ proc timestampToDateTime(s: string): DateTime =
     require n in fmtLengths, "invalid timestamp: " & s
     s.parse(if n == fmtLengths[0]: fmt0 else: fmt1, utc())
 
-proc timestampToUnix(s: string): int64 =
-    let date = s.timestampToDateTime
-    date.toTime.toUnix
+#proc timestampToUnix(s: string): int64 =
+#    let date = s.timestampToDateTime
+#    date.toTime.toUnix
 
 proc getMessages(req: HttpClient, channel, lastId: string): JsonNode =
     #echo "requesting more messages"
@@ -92,28 +91,15 @@ proc getMessageIds(req: HttpClient, channel, userId: string, lastId: var string,
                    res: var seq[Id]): bool =
     ## returns false when done
     let json = getMessages(req, channel, lastId)
+    if json.len == 0:
+        return
     #echo fmt"parsing {json.len} messages"
-    var
-        ids {.global.}: seq[Id]
-        idTimes {.global.}: seq[tuple[i: int, time: int64]]
-    ids.setLen 0
-    idTimes.setLen 0
     for msg in json:
-        let
-            timeStr = msg["timestamp"].getStr
-            time = timeStr.timestampToUnix
-            id = msg["id"].getStr.toId
-        ids.add id
-        idTimes.add (ids.high, time)
+        let id = msg["id"].getStr
+        lastId = id
         if msg["author"]["id"].getStr == userId:
             #echo "msg: ", msg["content"].getStr
-            res.add id
-    idTimes.sort((a,b) => cmp(a.time, b.time))
-    let
-        first = idTimes[0].i
-        firstTime = json[first]["timestamp"].getStr.timestampToDateTime
-    lastId = ids[first]
-    echo firstTime
+            res.add id.toId
     json.len >= batchSize
 
 proc getChannelName(req; channel: string): string =
@@ -135,7 +121,7 @@ proc deleteMessages(req; channel: string, ids: openArray[Id]) =
     let messages = channel/"messages"
     var n = 0
     for id in ids:
-        let res = req.delete messages/id
+        let res = req.delete messages/id.toStr
         checkStatus res
         n.inc
         break
