@@ -155,6 +155,9 @@ proc main =
             break
     if true: quit 0
 
+    echo fmt"{ids.len} messages found"
+    if not prompt("are you sure you want to delete them?"):
+        return
     deleteMessages req, channel, ids
 
 main()
