@@ -27,9 +27,12 @@ const
     channels = server/"channels"
     batchSize = 100
 
+proc require(cond: bool, err: string) =
+    if not cond:
+        raise newException(Exception, err)
+
 template checkStatus(res: Response) =
-    if res.status != Http200:
-        raise newException(Exception, res.status)
+    require res.status == Http200:
 
 proc toId(str): Id =
     str.parseUInt.uint64
@@ -57,8 +60,7 @@ proc timestampToUnix(s: string): int64 =
         fmt1 = initTimeFormat fmt1Str
         fmtLengths = [25, 25+7]
     let n = s.len
-    if n notin fmtLengths:
-        quit "invalid timestamp: " & s
+    require n in fmtLengths, "invalid timestamp: " & s
     let date = s.parse(if n == fmtLengths[0]: fmt0 else: fmt1, utc())
     date.toTime.toUnix
 
@@ -74,8 +76,7 @@ proc getMessages(req: HttpClient, channel, lastId: string): JsonNode =
         query = messages & paramStr
     echo query
     let res = req.get query
-    if res.status != Http200:
-        quit res.status
+    checkStatus res
     res.body.parseJson
 
 proc getMessageIds(req: HttpClient, channel, userId: string, lastId: var string):
@@ -107,8 +108,7 @@ proc getChannelName(req; channel: string): string =
     let res = req.get channel
     checkStatus res
     let json = res.body.parseJson()
-    if json["type"].getInt != 1:
-        quit "channel is not a DM"
+    require json["type"].getInt == 1, "channel is not a DM"
     json["recipients"][0]["username"].getStr
 
 proc prompt(q: string): bool =
