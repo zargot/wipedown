@@ -54,7 +54,6 @@ proc waitForRateLimit(res: Response) =
 template req(client, kind, uri): Response =
     var res: Response
     while true:
-        sleep requestDelay
         res = httpclient.kind(client, uri)
         if res.status == Http429:
             waitForRateLimit(res)
@@ -67,6 +66,7 @@ proc get(client: HttpClient, uri: string): auto =
     req(client, get, uri)
 
 proc delete(client: HttpClient, uri: string) =
+    sleep requestDelay
     discard req(client, delete, uri)
 
 proc toId(str): Id =
