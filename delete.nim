@@ -17,6 +17,7 @@ import
     times
 
 from os import paramStr, sleep
+from terminal import eraseLine
 
 type
     Id = uint64
@@ -118,15 +119,17 @@ proc prompt(q: string): bool =
         return true
 
 proc deleteMessages(req; channel: string, ids: openArray[Id]) =
-    echo fmt"deleting {ids.len} messages"
     let messages = channel/"messages"
-    var n = 0
-    for id in ids:
-        let res = req.delete messages/id.toStr
+    for i, id in ids:
+        let
+            j = i+1
+            progress = (j / ids.len) * 100
+            res = req.delete messages/id.toStr
         checkStatus res
-        n.inc
-        break
-    echo fmt"result: {n} messages deleted"
+        stdout.eraseLine
+        stdout.write fmt"deleting message {j}/{ids.len} ({progress:.2}%)"
+        sleep 100
+    echo ""
 
 proc main =
     let
