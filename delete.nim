@@ -170,12 +170,15 @@ proc main =
     if not prompt("continue?"):
         return
 
+    echo ""
     var
         ids: seq[Id]
         lastId: string
     while getMessageIds(client, channel, userId, lastId, ids):
+        stdout.eraseLine
+        stdout.write fmt"processed over {ids.len} messages so far..."
         break
-        #discard
+    echo ""
 
     echo fmt"{ids.len} messages found"
     if not prompt("are you sure you want to delete them?"):
