@@ -34,6 +34,8 @@ const
     server = "https://discordapp.com/api/v6"
     channels = server/"channels"
     batchSize = 100
+
+var
     requestDelay = 175
 
 proc require(cond: bool, err: string) =
@@ -47,6 +49,7 @@ proc waitForRateLimit(res: Response) =
     echo ""
     echo fmt"rate limited for {ms} ms..."
     sleep ms + 1
+    requestDelay += 10
 
 template req(client, kind, uri): Response =
     var res: Response
