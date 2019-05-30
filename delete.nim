@@ -24,7 +24,7 @@ type
 
 using
     str: string
-    req: HttpClient
+    client: HttpClient
     res: Response
 
 func `/`(a, b: string): string =
@@ -48,11 +48,11 @@ proc toId(str): Id =
 proc toStr(id: Id): string =
     $id
 
-proc getUser(req): auto =
+proc getUser(client): auto =
     const
         users = server/"users"
         me = users/"@me"
-    let res = req.get me
+    let res = client.get me
     checkStatus res
     let
         user = res.body.parseJson
@@ -75,7 +75,7 @@ proc timestampToDateTime(s: string): DateTime =
 #    let date = s.timestampToDateTime
 #    date.toTime.toUnix
 
-proc getMessages(req: HttpClient, channel, lastId: string): JsonNode =
+proc getMessages(client: HttpClient, channel, lastId: string): JsonNode =
     #echo "requesting more messages"
     let messages = channel/"messages"
     var params: seq[string]
@@ -85,14 +85,14 @@ proc getMessages(req: HttpClient, channel, lastId: string): JsonNode =
     let
         paramStr = "?" & params.join("&")
         query = messages & paramStr
-    let res = req.get query
+    let res = client.get query
     checkStatus res
     res.body.parseJson
 
-proc getMessageIds(req: HttpClient, channel, userId: string, lastId: var string,
+proc getMessageIds(client: HttpClient, channel, userId: string, lastId: var string,
                    res: var seq[Id]): bool =
     ## returns false when done
-    let json = getMessages(req, channel, lastId)
+    let json = getMessages(client, channel, lastId)
     if json.len == 0:
         return
     #echo fmt"parsing {json.len} messages"
@@ -104,8 +104,8 @@ proc getMessageIds(req: HttpClient, channel, userId: string, lastId: var string,
             res.add id.toId
     json.len >= batchSize
 
-proc getChannelName(req; channel: string): string =
-    let res = req.get channel
+proc getChannelName(client; channel: string): string =
+    let res = client.get channel
     checkStatus res
     let json = res.body.parseJson()
     require json["type"].getInt == 1, "channel is not a DM"
@@ -118,13 +118,13 @@ proc prompt(q: string): bool =
     of "y", "yes":
         return true
 
-proc deleteMessages(req; channel: string, ids: openArray[Id]) =
+proc deleteMessages(client; channel: string, ids: openArray[Id]) =
     let messages = channel/"messages"
     for i, id in ids:
         let
             j = i+1
             progress = (j / ids.len) * 100
-            res = req.delete messages/id.toStr
+            res = client.delete messages/id.toStr
         checkStatus res
         stdout.eraseLine
         stdout.write fmt"deleting message {j}/{ids.len} ({progress:.2}%)"
@@ -136,12 +136,12 @@ proc main =
         chanId = paramStr 1
         auth = paramStr 2
         channel = channels/chanId
-        req = newHttpClient()
-    req.headers.add "authorization", auth
+        client = newHttpClient()
+    client.headers.add "authorization", auth
 
     let
-        (userId, userName) = getUser(req)
-        chanName = getChannelName(req, channel)
+        (userId, userName) = getUser(client)
+        chanName = getChannelName(client, channel)
     echo fmt"deleting messages from {userName} in DM with {chanName}"
     if not prompt("continue?"):
         return
@@ -149,7 +149,7 @@ proc main =
     var
         ids: seq[Id]
         lastId: string
-    while getMessageIds(req, channel, userId, lastId, ids):
+    while getMessageIds(client, channel, userId, lastId, ids):
         break
         #discard
 
@@ -157,6 +157,6 @@ proc main =
     if not prompt("are you sure you want to delete them?"):
         return
     if true: quit 0
-    deleteMessages req, channel, ids
+    deleteMessages client, channel, ids
 
 main()
