@@ -9,10 +9,9 @@
 # API: https://github.com/discordapp/discord-api-docs/blob/master/docs/Reference.md
 #
 # TODO
-# - check if messages already are sorted by date
-# - cache ids
-# - add elapsed time
-# - dynamic rate limit
+# - more dynamic rate limit
+# - optimize eta calculation
+# - option to set delete-before date
 
 import json, streams, strformat, strutils, times
 import httpclient except get, delete
