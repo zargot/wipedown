@@ -9,7 +9,10 @@
 # API: https://github.com/discordapp/discord-api-docs/blob/master/docs/Reference.md
 #
 # TODO
-# - rate limit: https://ptb.discordapp.com/developers/docs/topics/rate-limits
+# - check if messages already are sorted by date
+# - cache ids
+# - add elapsed time
+# - dynamic rate limit
 
 import json, streams, strformat, strutils, times
 import httpclient except get, delete
