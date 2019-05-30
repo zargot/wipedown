@@ -149,7 +149,7 @@ proc deleteMessages(client; channel: string, ids: openArray[Id]) =
             progress = (j / ids.len) * 100
         client.delete messages/id.toStr
         stdout.eraseLine
-        stdout.write fmt"deleting message {j}/{ids.len} ({progress:.2}%)"
+        stdout.write fmt"deleting message {j}/{ids.len} ({progress:.1f}%)"
     echo ""
 
 proc main =
