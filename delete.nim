@@ -17,6 +17,7 @@
 import json, streams, strformat, strutils, times
 import httpclient except get, delete
 from os import paramStr, sleep
+from stats import mean
 from terminal import eraseLine
 
 type
@@ -146,13 +147,29 @@ proc prompt(q: string): bool =
 proc deleteMessages(client; channel: string, ids: openArray[Id]) =
     echo ""
     let messages = channel/"messages"
+    var
+        t0 = epochTime() - 1
+        mpsv: array[10, float]
     for i, id in ids:
         let
             j = i+1
             progress = (j / ids.len) * 100
+            remaining = ids.len - j
+            t1 = epochTime()
+            dt = t1 - t0
+            mps = 1 / dt
+        mpsv[i mod mpsv.len] = mps
+        let
+            avgMps = mpsv.mean
+            eta = (remaining.float / avgMps).int
+            etaSec = if eta < 60: eta else: 0
+            etaMin = convert(Seconds, Minutes, eta)
+            etaHour = convert(Seconds, Hours, eta)
+        t0 = t1
         client.delete messages/id.toStr
         stdout.eraseLine
-        stdout.write fmt"deleting message {j}/{ids.len} ({progress:.1f}%)"
+        stdout.write fmt"deleting {j}/{ids.len} ({progress:.1f}%)"
+        stdout.write fmt", eta: {etaHour:02}:{etaMin:02}:{etaSec:02}"
     echo ""
 
 proc main =
