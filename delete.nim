@@ -34,6 +34,7 @@ const
     server = "https://discordapp.com/api/v6"
     channels = server/"channels"
     batchSize = 100
+    requestDelay = 133
 
 proc require(cond: bool, err: string) =
     if not cond:
@@ -49,6 +50,7 @@ proc waitForRateLimit(res: Response) =
 template req(client, kind, uri): Response =
     var res: Response
     while true:
+        sleep requestDelay
         res = httpclient.kind(client, uri)
         if res.status == Http429:
             waitForRateLimit(res)
