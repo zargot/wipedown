@@ -15,7 +15,9 @@
 
 import json, streams, strformat, strutils, times
 import httpclient except get, delete
+#from algorithm import fill
 from os import paramStr, sleep
+#from sequtils import deduplicate
 from stats import mean
 from terminal import eraseLine
 
@@ -122,9 +124,13 @@ proc getMessageIds(client: HttpClient, channel, userId: string, lastId: var stri
         return
     total += json.len
     #echo fmt"parsing {json.len} messages"
+    #var t0 = now()
     for msg in json:
         let id = msg["id"].getStr
         lastId = id
+        #let t1 = msg["timestamp"].getStr.timestampToDateTime
+        #assert t1 < t0
+        #t0 = t1
         if msg["type"].getInt == 0 and msg["author"]["id"].getStr == userId:
             #echo "msg: ", msg["content"].getStr
             res.add id.toId
@@ -145,6 +151,8 @@ proc prompt(q: string): bool =
         return true
 
 proc deleteMessages(client; channel: string, ids: openArray[Id]) =
+    #assert ids.deduplicate.len == ids.len
+
     echo ""
     let messages = channel/"messages"
     var
