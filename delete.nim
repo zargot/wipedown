@@ -34,7 +34,7 @@ const
     server = "https://discordapp.com/api/v6"
     channels = server/"channels"
     batchSize = 100
-    requestDelay = 133
+    requestDelay = 175
 
 proc require(cond: bool, err: string) =
     if not cond:
@@ -150,7 +150,6 @@ proc deleteMessages(client; channel: string, ids: openArray[Id]) =
         client.delete messages/id.toStr
         stdout.eraseLine
         stdout.write fmt"deleting message {j}/{ids.len} ({progress:.2}%)"
-        sleep 100
     echo ""
 
 proc main =
