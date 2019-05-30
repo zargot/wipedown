@@ -11,11 +11,11 @@
 # - rate limit: https://ptb.discordapp.com/developers/docs/topics/rate-limits
 
 import
-    algorithm, httpclient, json,
-    sequtils, strformat, strutils, sugar,
+    httpclient, json,
+    strformat, strutils,
     times
 
-import os except `/`
+from os import paramStr, sleep
 
 type
     Id = uint64
