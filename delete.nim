@@ -203,13 +203,12 @@ proc main =
     while getMessageIds(client, channel, userId, lastId, total, ids):
         stdout.eraseLine
         stdout.write fmt"processed over {total} ({ids.len}) messages so far..."
-        break
     echo ""
 
     echo fmt"{ids.len} messages found"
     if not prompt("are you sure you want to delete them?"):
         return
-    if true: quit 0
     deleteMessages client, channel, ids
+    echo "done"
 
 main()
