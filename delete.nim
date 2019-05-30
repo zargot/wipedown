@@ -44,6 +44,7 @@ proc waitForRateLimit(res: Response) =
     let
         json = res.body.parseJson
         ms = json["retry_after"].getInt
+    echo ""
     echo fmt"rate limited for {ms} ms..."
     sleep ms + 1
 
@@ -140,6 +141,7 @@ proc prompt(q: string): bool =
         return true
 
 proc deleteMessages(client; channel: string, ids: openArray[Id]) =
+    echo ""
     let messages = channel/"messages"
     for i, id in ids:
         let
@@ -152,6 +154,8 @@ proc deleteMessages(client; channel: string, ids: openArray[Id]) =
     echo ""
 
 proc main =
+    setStdIoUnbuffered()
+
     let
         chanId = paramStr 1
         auth = paramStr 2
