@@ -115,11 +115,12 @@ proc getMessages(client: HttpClient, channel, lastId: string): JsonNode =
     res.body.parseJson
 
 proc getMessageIds(client: HttpClient, channel, userId: string, lastId: var string,
-                   res: var seq[Id]): bool =
+                   total: var int, res: var seq[Id]): bool =
     ## returns false when done
     let json = getMessages(client, channel, lastId)
     if json.len == 0:
         return
+    total += json.len
     #echo fmt"parsing {json.len} messages"
     for msg in json:
         let id = msg["id"].getStr
@@ -192,9 +193,10 @@ proc main =
     var
         ids: seq[Id]
         lastId: string
-    while getMessageIds(client, channel, userId, lastId, ids):
+        total: int
+    while getMessageIds(client, channel, userId, lastId, total, ids):
         stdout.eraseLine
-        stdout.write fmt"processed over {ids.len} messages so far..."
+        stdout.write fmt"processed over {total} ({ids.len}) messages so far..."
         break
     echo ""
 
