@@ -121,7 +121,7 @@ proc getMessageIds(client: HttpClient, channel, userId: string, lastId: var stri
     for msg in json:
         let id = msg["id"].getStr
         lastId = id
-        if msg["author"]["id"].getStr == userId:
+        if msg["type"].getInt == 0 and msg["author"]["id"].getStr == userId:
             #echo "msg: ", msg["content"].getStr
             res.add id.toId
     json.len >= batchSize
