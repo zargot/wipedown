@@ -11,11 +11,8 @@
 # TODO
 # - rate limit: https://ptb.discordapp.com/developers/docs/topics/rate-limits
 
-import
-    httpclient, json,
-    strformat, strutils,
-    times
-
+import json, streams, strformat, strutils, times
+import httpclient except get, delete
 from os import paramStr, sleep
 from terminal import eraseLine
 
@@ -39,8 +36,29 @@ proc require(cond: bool, err: string) =
     if not cond:
         raise newException(Exception, err)
 
-template checkStatus(res: Response) =
-    require res.status == Http200, res.status
+proc waitForRateLimit(res: Response) =
+    let
+        json = res.body.parseJson
+        ms = json["retry_after"].getInt
+    echo fmt"rate limited for {ms} ms..."
+    sleep ms + 1
+
+template req(client, kind, uri): Response =
+    var res: Response
+    while true:
+        res = httpclient.kind(client, uri)
+        if res.status == Http429:
+            waitForRateLimit(res)
+            continue
+        break
+    require res.status == Http200 or res.status == Http204, res.status
+    res
+
+proc get(client: HttpClient, uri: string): auto =
+    req(client, get, uri)
+
+proc delete(client: HttpClient, uri: string) =
+    discard req(client, delete, uri)
 
 proc toId(str): Id =
     str.parseUInt.uint64
@@ -52,9 +70,8 @@ proc getUser(client): auto =
     const
         users = server/"users"
         me = users/"@me"
-    let res = client.get me
-    checkStatus res
     let
+        res = client.get me
         user = res.body.parseJson
         id = user["id"].getStr
         name = user["username"].getStr
@@ -86,7 +103,6 @@ proc getMessages(client: HttpClient, channel, lastId: string): JsonNode =
         paramStr = "?" & params.join("&")
         query = messages & paramStr
     let res = client.get query
-    checkStatus res
     res.body.parseJson
 
 proc getMessageIds(client: HttpClient, channel, userId: string, lastId: var string,
@@ -105,9 +121,9 @@ proc getMessageIds(client: HttpClient, channel, userId: string, lastId: var stri
     json.len >= batchSize
 
 proc getChannelName(client; channel: string): string =
-    let res = client.get channel
-    checkStatus res
-    let json = res.body.parseJson()
+    let
+        res = client.get channel
+        json = res.body.parseJson()
     require json["type"].getInt == 1, "channel is not a DM"
     json["recipients"][0]["username"].getStr
 
@@ -124,8 +140,7 @@ proc deleteMessages(client; channel: string, ids: openArray[Id]) =
         let
             j = i+1
             progress = (j / ids.len) * 100
-            res = client.delete messages/id.toStr
-        checkStatus res
+        client.delete messages/id.toStr
         stdout.eraseLine
         stdout.write fmt"deleting message {j}/{ids.len} ({progress:.2}%)"
         sleep 100
