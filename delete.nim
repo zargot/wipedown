@@ -162,7 +162,7 @@ proc deleteMessages(client; channel: string, ids: openArray[Id]) =
             avgMps = mpsv.mean
             eta = (remaining.float / avgMps).int
             etaSec = if eta < 60: eta else: 0
-            etaMin = convert(Seconds, Minutes, eta)
+            etaMin = convert(Seconds, Minutes, eta) mod 60
             etaHour = convert(Seconds, Hours, eta)
         t0 = t1
         client.delete messages/id.toStr
