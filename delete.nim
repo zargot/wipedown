@@ -149,7 +149,7 @@ proc deleteMessages(client; channel: string, ids: openArray[Id]) =
     let messages = channel/"messages"
     var
         t0 = epochTime() - 1
-        mpsv: array[10, float]
+        mpsv: array[100, float]
     for i, id in ids:
         let
             j = i+1
