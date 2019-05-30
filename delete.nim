@@ -123,7 +123,6 @@ proc getMessageIds(client: HttpClient, channel, userId: string, lastId: var stri
     if json.len == 0:
         return
     total += json.len
-    #echo fmt"parsing {json.len} messages"
     #var t0 = now()
     for msg in json:
         let id = msg["id"].getStr
@@ -132,7 +131,6 @@ proc getMessageIds(client: HttpClient, channel, userId: string, lastId: var stri
         #assert t1 < t0
         #t0 = t1
         if msg["type"].getInt == 0 and msg["author"]["id"].getStr == userId:
-            #echo "msg: ", msg["content"].getStr
             res.add id.toId
     json.len >= batchSize
 
