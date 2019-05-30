@@ -80,16 +80,16 @@ proc getUser(client): auto =
         name = user["username"].getStr
     (id, name)
 
-proc timestampToDateTime(s: string): DateTime =
-    const
-        fmt0Str = "YYYY-MM-dd'T'HH:mm:sszzz"
-        fmt1Str = "YYYY-MM-dd'T'HH:mm:ss'.'ffffffzzz"
-        fmt0 = initTimeFormat fmt0Str
-        fmt1 = initTimeFormat fmt1Str
-        fmtLengths = [25, 25+7]
-    let n = s.len
-    require n in fmtLengths, "invalid timestamp: " & s
-    s.parse(if n == fmtLengths[0]: fmt0 else: fmt1, utc())
+#proc timestampToDateTime(s: string): DateTime =
+#    const
+#        fmt0Str = "YYYY-MM-dd'T'HH:mm:sszzz"
+#        fmt1Str = "YYYY-MM-dd'T'HH:mm:ss'.'ffffffzzz"
+#        fmt0 = initTimeFormat fmt0Str
+#        fmt1 = initTimeFormat fmt1Str
+#        fmtLengths = [25, 25+7]
+#    let n = s.len
+#    require n in fmtLengths, "invalid timestamp: " & s
+#    s.parse(if n == fmtLengths[0]: fmt0 else: fmt1, utc())
 
 #proc timestampToUnix(s: string): int64 =
 #    let date = s.timestampToDateTime
