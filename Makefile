@@ -1,2 +1,2 @@
 wipe_discord: wipe_discord.nim
-	nim c -d:ssl -g wipe_discord
+	nim c -d:ssl wipe_discord
