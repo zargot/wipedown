@@ -1,14 +1,7 @@
-# Discord DM Deleter
-# Copyright 2019 (c) zargot
-#
-# Limitations:
-# - must provide channel id and auth token manually
-# - currently only works on private DMs with one recipient
-# - only deletes default message type; not pins, calls, etc.
-#
 # API: https://github.com/discordapp/discord-api-docs/blob/master/docs/Reference.md
-#
+
 # TODO
+# - export copy before delete
 # - more dynamic rate limit
 # - optimize eta calculation
 # - option to set delete-before date
