@@ -6,10 +6,9 @@
 # - optimize eta calculation
 # - option to set delete-before date
 
-import json, streams, strformat, strutils, times
+import json, os, parseopt, streams, strformat, strutils, times
 import httpclient except get, delete
-#from algorithm import fill
-from os import paramStr, sleep
+from algorithm import reverse
 #from sequtils import deduplicate
 from stats import mean
 from terminal import eraseLine
@@ -32,6 +31,7 @@ const
 
 var
     requestDelay = 175
+    copyBuf: seq[string]
 
 proc require(cond: bool, err: string) =
     if not cond:
@@ -81,16 +81,16 @@ proc getUser(client): auto =
         name = user["username"].getStr
     (id, name)
 
-#proc timestampToDateTime(s: string): DateTime =
-#    const
-#        fmt0Str = "YYYY-MM-dd'T'HH:mm:sszzz"
-#        fmt1Str = "YYYY-MM-dd'T'HH:mm:ss'.'ffffffzzz"
-#        fmt0 = initTimeFormat fmt0Str
-#        fmt1 = initTimeFormat fmt1Str
-#        fmtLengths = [25, 25+7]
-#    let n = s.len
-#    require n in fmtLengths, "invalid timestamp: " & s
-#    s.parse(if n == fmtLengths[0]: fmt0 else: fmt1, utc())
+proc timestampToDateTime(s: string): DateTime =
+    const
+        fmt0Str = "YYYY-MM-dd'T'HH:mm:sszzz"
+        fmt1Str = "YYYY-MM-dd'T'HH:mm:ss'.'ffffffzzz"
+        fmt0 = initTimeFormat fmt0Str
+        fmt1 = initTimeFormat fmt1Str
+        fmtLengths = [25, 25+7]
+    let n = s.len
+    require n in fmtLengths, "invalid timestamp: " & s
+    s.parse(if n == fmtLengths[0]: fmt0 else: fmt1, utc())
 
 #proc timestampToUnix(s: string): int64 =
 #    let date = s.timestampToDateTime
@@ -110,7 +110,7 @@ proc getMessages(client: HttpClient, channel, lastId: string): JsonNode =
     res.body.parseJson
 
 proc getMessageIds(client: HttpClient, channel, userId: string, lastId: var string,
-                   total: var int, res: var seq[Id]): bool =
+                   total: var int, res: var seq[Id], doCopy: bool): bool =
     ## returns false when done
     let json = getMessages(client, channel, lastId)
     if json.len == 0:
@@ -123,8 +123,19 @@ proc getMessageIds(client: HttpClient, channel, userId: string, lastId: var stri
         #let t1 = msg["timestamp"].getStr.timestampToDateTime
         #assert t1 < t0
         #t0 = t1
-        if msg["type"].getInt == 0 and msg["author"]["id"].getStr == userId:
+        let
+            kind = msg["type"].getInt
+            user = msg["author"]
+        if kind != 0:
+            continue
+        if user["id"].getStr == userId:
             res.add id.toId
+        if doCopy:
+            let
+                date = msg["timestamp"].getStr.timestampToDateTime.format("dd'.'MM'.'yy, HH:mm")
+                name = user["username"].getStr
+                content = msg["content"].getStr
+            copyBuf.add fmt"> {name}, {date}: {content}{'\n'}"
     json.len >= batchSize
 
 proc getChannelName(client; channel: string): string =
@@ -171,12 +182,46 @@ proc deleteMessages(client; channel: string, ids: openArray[Id]) =
         stdout.write fmt", eta: {etaHour:02}:{etaMin:02}:{etaSec:02}"
     echo ""
 
+proc initCopy(path: string) =
+    require not path.fileExists, "out file exists"
+    copyBuf = @[]
+
+proc finalizeCopy(path: string) =
+    echo "finalizing copy..."
+    copyBuf.reverse
+    let s = openFileStream(path, fmWrite)
+    for line in copyBuf:
+        s.writeLine line
+    s.close()
+
 proc main =
     setStdIoUnbuffered()
 
+    var
+        opt = initOptParser(shortNoVal={'n'})
+        chanId, auth: string
+        optNoDelete: bool
+        optOut: string
+    while true:
+        opt.next()
+        case opt.kind
+        of cmdEnd: break
+        of cmdShortOption:
+            if opt.key == "c":
+                chanId = opt.val
+            if opt.key == "a":
+                auth = opt.val
+            if opt.key == "n":
+                optNoDelete = true
+        of cmdLongOption:
+            if opt.key == "out":
+                optOut = opt.val
+        of cmdArgument:
+            discard
+    require chanId.len > 0, "no chan id"
+    require auth.len > 0, "no auth token"
+
     let
-        chanId = paramStr 1
-        auth = paramStr 2
         channel = channels/chanId
         client = newHttpClient()
     client.headers.add "authorization", auth
@@ -184,24 +229,32 @@ proc main =
     let
         (userId, userName) = getUser(client)
         chanName = getChannelName(client, channel)
-    echo fmt"deleting messages from {userName} in DM with {chanName}"
+    echo fmt"processing DM ({userName}, {chanName})"
     if not prompt("continue?"):
         return
 
-    echo ""
+    let doCopy = optOut.len > 0
+    if doCopy:
+        initCopy optOut
     var
         ids: seq[Id]
         lastId: string
         total: int
-    while getMessageIds(client, channel, userId, lastId, total, ids):
+    echo ""
+    while getMessageIds(client, channel, userId, lastId, total, ids, doCopy):
         stdout.eraseLine
         stdout.write fmt"processed over {total} ({ids.len}) messages so far..."
     echo ""
+    if doCopy:
+        finalizeCopy optOut
 
     echo fmt"{ids.len} messages found"
-    if not prompt("are you sure you want to delete them?"):
-        return
-    deleteMessages client, channel, ids
+    if optNoDelete:
+        echo "skipping deletion"
+    else:
+        if not prompt("are you sure you want to delete them?"):
+            return
+        deleteMessages client, channel, ids
     echo "done"
 
 main()
