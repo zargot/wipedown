@@ -16,7 +16,7 @@ Wipes your messages from a Discord DM
 ```
 cd wipedown
 make
-./wipe_discord CHANNEL_ID AUTH_TOKEN
+./wipe_discord -c:CHANNEL_ID -a:AUTH_TOKEN [-n] [--copy:PATH]
 ```
 
 ### Limitations
