@@ -183,7 +183,7 @@ proc deleteMessages(client; channel: string, ids: openArray[Id]) =
     echo ""
 
 proc initCopy(path: string) =
-    require not path.fileExists, "out file exists"
+    require not path.fileExists, "copy file exists"
     copyBuf = @[]
 
 proc finalizeCopy(path: string) =
@@ -201,7 +201,7 @@ proc main =
         opt = initOptParser(shortNoVal={'n'})
         chanId, auth: string
         optNoDelete: bool
-        optOut: string
+        optCopy: string
     while true:
         opt.next()
         case opt.kind
@@ -214,8 +214,8 @@ proc main =
             if opt.key == "n":
                 optNoDelete = true
         of cmdLongOption:
-            if opt.key == "out":
-                optOut = opt.val
+            if opt.key == "copy":
+                optCopy = opt.val
         of cmdArgument:
             discard
     require chanId.len > 0, "no chan id"
@@ -233,9 +233,9 @@ proc main =
     if not prompt("continue?"):
         return
 
-    let doCopy = optOut.len > 0
+    let doCopy = optCopy.len > 0
     if doCopy:
-        initCopy optOut
+        initCopy optCopy
     var
         ids: seq[Id]
         lastId: string
@@ -246,7 +246,7 @@ proc main =
         stdout.write fmt"processed over {total} ({ids.len}) messages so far..."
     echo ""
     if doCopy:
-        finalizeCopy optOut
+        finalizeCopy optCopy
 
     echo fmt"{ids.len} messages found"
     if optNoDelete:
