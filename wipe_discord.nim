@@ -1,7 +1,6 @@
 # API: https://github.com/discordapp/discord-api-docs/blob/master/docs/Reference.md
 
 # TODO
-# - export copy before delete
 # - more dynamic rate limit
 # - optimize eta calculation
 # - option to set delete-before date
