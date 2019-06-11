@@ -24,3 +24,4 @@ make
 - Must provide channel id and auth token manually
 - Currently only works on private DMs with one recipient
 - Only deletes default message type; not pins, calls, etc.
+- Does not handle multi-attachment messages with identical filenames

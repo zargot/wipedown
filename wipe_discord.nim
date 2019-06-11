@@ -31,6 +31,7 @@ const
 var
     requestDelay = 175
     copyBuf: seq[string]
+    attachQueue: seq[tuple[src, dst: string]]
 
 proc require(cond: bool, err: string) =
     if not cond:
@@ -108,7 +109,7 @@ proc getMessages(client: HttpClient, channel, lastId: string): JsonNode =
     let res = client.get query
     res.body.parseJson
 
-proc getMessageIds(client: HttpClient, channel, userId: string, lastId: var string,
+proc processMessages(client: HttpClient, channel, userId: string, lastId: var string,
                    total: var int, res: var seq[Id], doCopy: bool): bool =
     ## returns false when done
     let json = getMessages(client, channel, lastId)
@@ -131,10 +132,19 @@ proc getMessageIds(client: HttpClient, channel, userId: string, lastId: var stri
             res.add id.toId
         if doCopy:
             let
-                date = msg["timestamp"].getStr.timestampToDateTime.format("dd'.'MM'.'yy, HH:mm")
+                timestamp = msg["timestamp"].getStr
+                date = timestamp.timestampToDateTime.format("dd'.'MM'.'yy, HH:mm")
                 name = user["username"].getStr
                 content = msg["content"].getStr
             copyBuf.add fmt"> {name}, {date}: {content}{'\n'}"
+
+            for a in msg["attachments"]:
+                let
+                    filename = a["filename"].getStr
+                    dst = fmt"{timestamp[0..18]}_-_{filename}"
+                    src = a["url"].getStr
+                attachQueue.add (src, dst)
+
     json.len >= batchSize
 
 proc getChannelName(client; channel: string): string =
@@ -183,7 +193,8 @@ proc deleteMessages(client; channel: string, ids: openArray[Id]) =
 
 proc initCopy(path: string) =
     require not path.fileExists, "copy file exists"
-    copyBuf = @[]
+    copyBuf.setLen 0
+    attachQueue.setLen 0
 
 proc finalizeCopy(path: string) =
     echo "finalizing copy..."
@@ -192,6 +203,21 @@ proc finalizeCopy(path: string) =
     for line in copyBuf:
         s.writeLine line
     s.close()
+
+proc downloadAttachments(dir: string) =
+    createDir dir
+    let
+        client = newHttpClient()
+        total = attachQueue.len
+    echo ""
+    for i, a in attachQueue:
+        stdout.eraseLine
+        stdout.write fmt"downloading attachment {i+1}/{total}"
+        let
+            data = client.getContent a.src
+            path = os.`/`(dir, a.dst)
+        writeFile path, data
+    echo ""
 
 proc main =
     setStdIoUnbuffered()
@@ -240,12 +266,13 @@ proc main =
         lastId: string
         total: int
     echo ""
-    while getMessageIds(client, channel, userId, lastId, total, ids, doCopy):
+    while processMessages(client, channel, userId, lastId, total, ids, doCopy):
         stdout.eraseLine
         stdout.write fmt"processed over {total} ({ids.len}) messages so far..."
     echo ""
     if doCopy:
         finalizeCopy optCopy
+        downloadAttachments chanId
 
     echo fmt"{ids.len} messages found"
     if optNoDelete:
