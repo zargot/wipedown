@@ -108,7 +108,7 @@ proc getMessages(client: HttpClient, channel, lastId: string): JsonNode =
     let res = client.get query
     res.body.parseJson
 
-proc getMessageIds(client: HttpClient, channel, userId: string, lastId: var string,
+proc processMessages(client: HttpClient, channel, userId: string, lastId: var string,
                    total: var int, res: var seq[Id], doCopy: bool): bool =
     ## returns false when done
     let json = getMessages(client, channel, lastId)
@@ -240,7 +240,7 @@ proc main =
         lastId: string
         total: int
     echo ""
-    while getMessageIds(client, channel, userId, lastId, total, ids, doCopy):
+    while processMessages(client, channel, userId, lastId, total, ids, doCopy):
         stdout.eraseLine
         stdout.write fmt"processed over {total} ({ids.len}) messages so far..."
     echo ""
