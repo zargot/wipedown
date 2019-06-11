@@ -131,7 +131,8 @@ proc processMessages(client: HttpClient, channel, userId: string, lastId: var st
             res.add id.toId
         if doCopy:
             let
-                date = msg["timestamp"].getStr.timestampToDateTime.format("dd'.'MM'.'yy, HH:mm")
+                timestamp = msg["timestamp"].getStr
+                date = timestamp.timestampToDateTime.format("dd'.'MM'.'yy, HH:mm")
                 name = user["username"].getStr
                 content = msg["content"].getStr
             copyBuf.add fmt"> {name}, {date}: {content}{'\n'}"
