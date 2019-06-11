@@ -191,13 +191,8 @@ proc deleteMessages(client; channel: string, ids: openArray[Id]) =
         stdout.write fmt", eta: {etaHour:02}:{etaMin:02}:{etaSec:02}"
     echo ""
 
-proc initCopy(path: string) =
-    require not path.fileExists, "copy file exists"
-    copyBuf.setLen 0
-    attachQueue.setLen 0
-
-proc finalizeCopy(path: string) =
-    echo "finalizing copy..."
+proc writeMessages(path: string) =
+    echo "writing messages..."
     copyBuf.reverse
     let s = openFileStream(path, fmWrite)
     for line in copyBuf:
@@ -205,7 +200,6 @@ proc finalizeCopy(path: string) =
     s.close()
 
 proc downloadAttachments(dir: string) =
-    createDir dir
     let
         client = newHttpClient()
         total = attachQueue.len
@@ -219,14 +213,22 @@ proc downloadAttachments(dir: string) =
         writeFile path, data
     echo ""
 
+proc initCopy() =
+    copyBuf.setLen 0
+    attachQueue.setLen 0
+
+proc finalizeCopy(dir: string) =
+    createDir dir
+    writeMessages os.`/`(dir, "dm.txt")
+    downloadAttachments dir
+
 proc main =
     setStdIoUnbuffered()
 
     var
         opt = initOptParser(shortNoVal={'n'})
         chanId, auth: string
-        optNoDelete: bool
-        optCopy: string
+        optCopy, optNoDelete: bool
     while true:
         opt.next()
         case opt.kind
@@ -239,8 +241,8 @@ proc main =
             if opt.key == "n":
                 optNoDelete = true
         of cmdLongOption:
-            if opt.key == "copy":
-                optCopy = opt.val
+            if opt.key == "backup":
+                optCopy = true
         of cmdArgument:
             discard
     require chanId.len > 0, "no chan id"
@@ -258,20 +260,19 @@ proc main =
     if not prompt("continue?"):
         return
 
-    let doCopy = optCopy.len > 0
-    if doCopy:
-        initCopy optCopy
+    if optCopy:
+        initCopy()
     var
         ids: seq[Id]
         lastId: string
         total: int
     echo ""
-    while processMessages(client, channel, userId, lastId, total, ids, doCopy):
+    while processMessages(client, channel, userId, lastId, total, ids, optCopy):
         stdout.eraseLine
         stdout.write fmt"processed over {total} ({ids.len}) messages so far..."
     echo ""
-    if doCopy:
-        finalizeCopy optCopy
+    if optCopy:
+        finalizeCopy chanId
         downloadAttachments chanId
 
     echo fmt"{ids.len} messages found"
