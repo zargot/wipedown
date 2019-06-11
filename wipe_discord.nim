@@ -31,6 +31,7 @@ const
 var
     requestDelay = 175
     copyBuf: seq[string]
+    attachQueue: seq[tuple[src, dst: string]]
 
 proc require(cond: bool, err: string) =
     if not cond:
@@ -136,6 +137,14 @@ proc processMessages(client: HttpClient, channel, userId: string, lastId: var st
                 name = user["username"].getStr
                 content = msg["content"].getStr
             copyBuf.add fmt"> {name}, {date}: {content}{'\n'}"
+
+            for a in msg["attachments"]:
+                let
+                    filename = a["filename"].getStr
+                    dst = fmt"{timestamp[0..18]}_-_{filename}"
+                    src = a["url"].getStr
+                attachQueue.add (src, dst)
+
     json.len >= batchSize
 
 proc getChannelName(client; channel: string): string =
@@ -185,6 +194,7 @@ proc deleteMessages(client; channel: string, ids: openArray[Id]) =
 proc initCopy(path: string) =
     require not path.fileExists, "copy file exists"
     copyBuf.setLen 0
+    attachQueue.setLen 0
 
 proc finalizeCopy(path: string) =
     echo "finalizing copy..."
@@ -193,6 +203,21 @@ proc finalizeCopy(path: string) =
     for line in copyBuf:
         s.writeLine line
     s.close()
+
+proc downloadAttachments(dir: string) =
+    createDir dir
+    let
+        client = newHttpClient()
+        total = attachQueue.len
+    echo ""
+    for i, a in attachQueue:
+        stdout.eraseLine
+        stdout.write fmt"downloading attachment {i+1}/{total}"
+        let
+            data = client.getContent a.src
+            path = os.`/`(dir, a.dst)
+        writeFile path, data
+    echo ""
 
 proc main =
     setStdIoUnbuffered()
@@ -247,6 +272,7 @@ proc main =
     echo ""
     if doCopy:
         finalizeCopy optCopy
+        downloadAttachments chanId
 
     echo fmt"{ids.len} messages found"
     if optNoDelete:
