@@ -184,7 +184,7 @@ proc deleteMessages(client; channel: string, ids: openArray[Id]) =
 
 proc initCopy(path: string) =
     require not path.fileExists, "copy file exists"
-    copyBuf = @[]
+    copyBuf.setLen 0
 
 proc finalizeCopy(path: string) =
     echo "finalizing copy..."
