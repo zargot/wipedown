@@ -92,12 +92,7 @@ proc timestampToDateTime(s: string): DateTime =
     require n in fmtLengths, "invalid timestamp: " & s
     s.parse(if n == fmtLengths[0]: fmt0 else: fmt1, utc())
 
-#proc timestampToUnix(s: string): int64 =
-#    let date = s.timestampToDateTime
-#    date.toTime.toUnix
-
 proc getMessages(client: HttpClient, channel, lastId: string): JsonNode =
-    #echo "requesting more messages"
     let messages = channel/"messages"
     var params: seq[string]
     if lastId != "":
@@ -130,6 +125,7 @@ proc processMessages(client: HttpClient, channel, userId: string, lastId: var st
             continue
         if user["id"].getStr == userId:
             res.add id.toId
+
         if doCopy:
             let
                 timestamp = msg["timestamp"].getStr
@@ -137,14 +133,12 @@ proc processMessages(client: HttpClient, channel, userId: string, lastId: var st
                 name = user["username"].getStr
                 content = msg["content"].getStr
             copyBuf.add fmt"> {name}, {date}: {content}{'\n'}"
-
             for a in msg["attachments"]:
                 let
                     filename = a["filename"].getStr
                     dst = fmt"{timestamp[0..18]}_-_{filename}"
                     src = a["url"].getStr
                 attachQueue.add (src, dst)
-
     json.len >= batchSize
 
 proc getChannelName(client; channel: string): string =
@@ -163,12 +157,11 @@ proc prompt(q: string): bool =
 
 proc deleteMessages(client; channel: string, ids: openArray[Id]) =
     #assert ids.deduplicate.len == ids.len
-
-    echo ""
     let messages = channel/"messages"
     var
         t0 = epochTime() - 1
         mpsv: array[100, float]
+    echo ""
     for i, id in ids:
         let
             j = i+1
@@ -224,11 +217,11 @@ proc finalizeCopy(dir: string) =
 
 proc main =
     setStdIoUnbuffered()
-
     var
         opt = initOptParser(shortNoVal={'n'})
         chanId, auth: string
         optCopy, optNoDelete: bool
+
     while true:
         opt.next()
         case opt.kind
